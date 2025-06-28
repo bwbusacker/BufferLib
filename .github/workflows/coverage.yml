@@ -18,7 +18,8 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential libboost-all-dev lcov
+        sudo apt-get install -y cmake build-essential lcov
+        sudo apt-get install -y libboost-dev libboost-thread-dev libboost-system-dev
 
     - name: Configure with coverage
       run: |
