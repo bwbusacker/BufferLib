@@ -60,6 +60,24 @@ jobs:
         # Check for boost libraries  
         ls -la /usr/lib/x86_64-linux-gnu/libboost* | head -10 || echo "No boost libraries found"
 
+    - name: Test boost compilation (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        echo "Testing boost compilation directly..."
+        g++ -std=c++17 test_boost.cpp -lboost_thread -lboost_system -o test_boost || {
+          echo "❌ Direct boost compilation failed"
+          echo "Trying without linking libraries (header-only test)..."
+          g++ -std=c++17 test_boost.cpp -o test_boost_headers_only || {
+            echo "❌ Even header-only boost compilation failed"
+            exit 1
+          }
+          echo "✅ Header-only boost compilation succeeded"
+        }
+        if [ -f test_boost ]; then
+          echo "✅ Full boost compilation succeeded, testing execution..."
+          ./test_boost || echo "❌ boost test execution failed"
+        fi
+
     - name: Install dependencies (macOS)
       if: matrix.os == 'macos-latest'
       run: |
