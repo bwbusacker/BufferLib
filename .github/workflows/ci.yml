@@ -64,19 +64,42 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         echo "Testing boost compilation directly..."
-        g++ -std=c++17 test_boost.cpp -lboost_thread -lboost_system -o test_boost || {
-          echo "❌ Direct boost compilation failed"
-          echo "Trying without linking libraries (header-only test)..."
-          g++ -std=c++17 test_boost.cpp -o test_boost_headers_only || {
-            echo "❌ Even header-only boost compilation failed"
+        echo "=== Test 1: Header-only compilation ==="
+        echo '#include <iostream>' > test_headers.cpp
+        echo '#include <boost/format.hpp>' >> test_headers.cpp
+        echo '#include <boost/random.hpp>' >> test_headers.cpp
+        echo 'int main() { std::cout << "Headers OK" << std::endl; return 0; }' >> test_headers.cpp
+        g++ -std=c++17 test_headers.cpp -o test_headers || {
+          echo "❌ Boost headers test failed"
+          exit 1
+        }
+        echo "✅ Header-only test passed"
+        
+        echo "=== Test 2: Thread library compilation ==="
+        echo '#include <iostream>' > test_thread.cpp
+        echo '#include <boost/thread/mutex.hpp>' >> test_thread.cpp
+        echo 'int main() { boost::mutex m; std::cout << "Thread OK" << std::endl; return 0; }' >> test_thread.cpp
+        g++ -std=c++17 test_thread.cpp -lboost_thread -lboost_system -o test_thread || {
+          echo "❌ Boost thread test failed, trying different linking..."
+          g++ -std=c++17 test_thread.cpp -lboost_thread -o test_thread_simple || {
+            echo "❌ Even simple boost thread linking failed"
+            echo "Available boost libraries:"
+            find /usr/lib -name "*boost*" 2>/dev/null | head -10
+            echo "pkg-config boost info:"
+            pkg-config --libs --cflags boost 2>/dev/null || echo "pkg-config boost not available"
             exit 1
           }
-          echo "✅ Header-only boost compilation succeeded"
+          echo "✅ Simple boost thread linking worked"
         }
-        if [ -f test_boost ]; then
-          echo "✅ Full boost compilation succeeded, testing execution..."
-          ./test_boost || echo "❌ boost test execution failed"
-        fi
+        echo "✅ Thread test passed"
+        
+        echo "=== Test 3: Full boost test ==="
+        g++ -std=c++17 test_boost.cpp -lboost_thread -lboost_system -o test_boost || {
+          echo "❌ Full boost test compilation failed"
+          exit 1
+        }
+        echo "✅ Full boost compilation succeeded, testing execution..."
+        ./test_boost || echo "❌ boost test execution failed"
 
     - name: Install dependencies (macOS)
       if: matrix.os == 'macos-latest'
