@@ -1,0 +1,50 @@
+# Build directories
+build/
+cmake-build-*/
+
+# Compiled object files
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+install_manifest.txt
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
+
+# Log files
+*.log
+
+# Coverage files
+*.gcov
+*.gcda
+*.gcno
+
+# Valgrind output
+vgcore.*
+*.valgrind
+
+# Core dumps
+core 

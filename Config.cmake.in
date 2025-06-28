@@ -1,0 +1,9 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+find_dependency(Boost REQUIRED COMPONENTS thread system)
+
+include("${CMAKE_CURRENT_LIST_DIR}/BufferLibTargets.cmake")
+
+check_required_components(BufferLib) 
