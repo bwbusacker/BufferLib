@@ -1,0 +1,115 @@
+name: Performance Benchmarks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run performance tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  performance:
+    name: Performance Benchmarks
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        build_type: [Release, Debug]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential libboost-all-dev
+
+    - name: Install dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install cmake boost
+
+    - name: Configure for performance
+      run: |
+        cmake -B build-perf \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+          -DBUILD_TESTS=ON \
+          -DBUILD_EXAMPLES=ON \
+          -DENABLE_COVERAGE=OFF
+
+    - name: Build for performance
+      run: |
+        cmake --build build-perf --config ${{ matrix.build_type }} --parallel
+
+    - name: Run performance benchmarks
+      run: |
+        cd build-perf
+        echo "=== Performance Benchmarks (${{ matrix.os }}, ${{ matrix.build_type }}) ===" > perf_results.txt
+        echo "Date: $(date)" >> perf_results.txt
+        echo "OS: ${{ matrix.os }}" >> perf_results.txt
+        echo "Build Type: ${{ matrix.build_type }}" >> perf_results.txt
+        echo "CPU Info:" >> perf_results.txt
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          lscpu | grep -E "(Model name|CPU\(s\)|Thread|Core)" >> perf_results.txt
+        else
+          sysctl -n machdep.cpu.brand_string >> perf_results.txt
+          sysctl -n hw.ncpu >> perf_results.txt
+        fi
+        echo "" >> perf_results.txt
+        ./tests/performance_tests >> perf_results.txt 2>&1
+        cat perf_results.txt
+
+    - name: Upload performance results
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-results-${{ matrix.os }}-${{ matrix.build_type }}
+        path: build-perf/perf_results.txt
+
+    - name: Performance regression check
+      if: github.event_name == 'pull_request'
+      run: |
+        echo "Performance regression checking would go here"
+        echo "This could compare against baseline performance metrics"
+        echo "and fail the build if performance degrades significantly"
+
+  performance-comparison:
+    name: Performance Comparison
+    runs-on: ubuntu-latest
+    needs: performance
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Download performance artifacts
+      uses: actions/download-artifact@v4
+      
+    - name: Compare performance results
+      run: |
+        echo "=== Performance Comparison Report ===" > comparison.md
+        echo "" >> comparison.md
+        echo "Performance benchmarks completed for PR #${{ github.event.number }}" >> comparison.md
+        echo "" >> comparison.md
+        echo "## Results by Platform and Build Type" >> comparison.md
+        echo "" >> comparison.md
+        
+        for artifact in performance-results-*; do
+          if [ -d "$artifact" ]; then
+            echo "### $artifact" >> comparison.md
+            echo '```' >> comparison.md
+            cat "$artifact/perf_results.txt" | tail -20 >> comparison.md
+            echo '```' >> comparison.md
+            echo "" >> comparison.md
+          fi
+        done
+        
+        cat comparison.md
+
+    - name: Upload comparison report
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-comparison-report
+        path: comparison.md 

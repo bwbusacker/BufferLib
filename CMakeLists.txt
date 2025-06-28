@@ -98,6 +98,7 @@ if(BUILD_TESTS)
     # Register tests with CTest
     add_test(NAME SimpleTests COMMAND simple_test WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
     add_test(NAME UnitTests COMMAND unit_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+    add_test(NAME PerformanceTests COMMAND performance_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
 endif()
 
 # Installation rules

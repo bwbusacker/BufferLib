@@ -3,6 +3,9 @@ build/
 build-*/
 cmake-build-*/
 
+# Benchmark results
+benchmark-results/
+
 # Coverage reports
 coverage/
 *.gcov
