@@ -28,7 +28,13 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake build-essential
-        sudo apt-get install -y libboost-dev libboost-thread-dev libboost-system-dev
+        # Install comprehensive boost packages
+        sudo apt-get install -y libboost-all-dev || {
+          echo "libboost-all-dev failed, trying individual packages..."
+          sudo apt-get install -y libboost-dev libboost-thread-dev libboost-system-dev
+        }
+        echo "Boost installation completed"
+        dpkg -l | grep boost
 
     - name: Install dependencies (macOS)
       if: matrix.os == 'macos-latest'

@@ -7,9 +7,28 @@ project(BufferLib VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Set CMake policy for Boost
+if(POLICY CMP0167)
+    cmake_policy(SET CMP0167 NEW)
+endif()
+
 # Find required packages
-# Note: boost::format and boost::random are header-only libraries and don't need linking
+# Use modern Boost config approach
 find_package(Boost REQUIRED COMPONENTS thread system)
+if(NOT Boost_FOUND)
+    # Fallback to old FindBoost method for older CMake versions
+    set(Boost_USE_STATIC_LIBS OFF)
+    set(Boost_USE_MULTITHREADED ON)
+    set(Boost_USE_STATIC_RUNTIME OFF)
+    find_package(Boost REQUIRED COMPONENTS thread system)
+endif()
+
+# Debug information for boost
+message(STATUS "Boost version: ${Boost_VERSION}")
+message(STATUS "Boost include dirs: ${Boost_INCLUDE_DIRS}")
+message(STATUS "Boost libraries: ${Boost_LIBRARIES}")
+message(STATUS "Boost thread library: ${Boost_THREAD_LIBRARY}")
+message(STATUS "Boost system library: ${Boost_SYSTEM_LIBRARY}")
 
 # Define library sources
 set(LIBRARY_SOURCES
@@ -47,10 +66,19 @@ target_include_directories(BufferLib PUBLIC
 )
 
 # Link libraries
-target_link_libraries(BufferLib PUBLIC 
-    Boost::thread
-    Boost::system
-)
+if(TARGET Boost::thread AND TARGET Boost::system)
+    # Modern CMake approach with imported targets
+    target_link_libraries(BufferLib PUBLIC 
+        Boost::thread
+        Boost::system
+    )
+    message(STATUS "Using modern Boost imported targets")
+else()
+    # Legacy approach using variables
+    target_include_directories(BufferLib PUBLIC ${Boost_INCLUDE_DIRS})
+    target_link_libraries(BufferLib PUBLIC ${Boost_LIBRARIES})
+    message(STATUS "Using legacy Boost variables: ${Boost_LIBRARIES}")
+endif()
 
 # Compiler-specific options
 if(MSVC)
