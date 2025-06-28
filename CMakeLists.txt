@@ -3,11 +3,12 @@ cmake_minimum_required(VERSION 3.10)
 # Project name and version
 project(BufferLib VERSION 1.0.0 LANGUAGES CXX)
 
-# Set C++ standard
+# Set C++ standard  
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find required packages
+# Note: boost::format and boost::random are header-only libraries and don't need linking
 find_package(Boost REQUIRED COMPONENTS thread system)
 
 # Define library sources
