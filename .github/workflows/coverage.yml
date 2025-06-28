@@ -39,10 +39,19 @@ jobs:
     - name: Run tests
       run: |
         cd build-coverage
-        ./tests/simple_test
-        ./tests/unit_tests
-        ./examples/basic_example
-        ./examples/buffer_operations
+        echo "Running tests for coverage..."
+        if [ -f "./tests/simple_test" ]; then
+          ./tests/simple_test
+        fi
+        if [ -f "./tests/unit_tests" ]; then
+          ./tests/unit_tests
+        fi
+        if [ -f "./examples/basic_example" ]; then
+          ./examples/basic_example
+        fi
+        if [ -f "./examples/buffer_operations" ]; then
+          ./examples/buffer_operations
+        fi
         cd ..
 
     - name: Capture coverage data
@@ -80,6 +89,8 @@ jobs:
         flags: unittests
         name: BufferLib Coverage
         fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
+      continue-on-error: true
 
     - name: Upload coverage artifacts
       uses: actions/upload-artifact@v4

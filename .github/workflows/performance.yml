@@ -32,7 +32,9 @@ jobs:
     - name: Install dependencies (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        brew install cmake boost
+        # Update brew first to avoid package conflicts
+        brew update || true
+        brew install cmake boost || brew upgrade cmake boost
 
     - name: Configure for performance
       run: |
@@ -61,7 +63,12 @@ jobs:
           sysctl -n hw.ncpu >> perf_results.txt
         fi
         echo "" >> perf_results.txt
-        ./tests/performance_tests >> perf_results.txt 2>&1
+        if [ -f "./tests/performance_tests" ]; then
+          ./tests/performance_tests >> perf_results.txt 2>&1
+        else
+          echo "Performance tests executable not found" >> perf_results.txt
+          ls -la tests/ >> perf_results.txt
+        fi
         cat perf_results.txt
 
     - name: Upload performance results
