@@ -18,31 +18,42 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential lcov
-        # Install comprehensive boost packages with all components we need
-        sudo apt-get install -y libboost-all-dev || {
-          echo "libboost-all-dev failed, trying comprehensive individual packages..."
-          sudo apt-get install -y \
-            libboost-dev \
-            libboost-thread-dev \
-            libboost-system-dev \
-            libboost-random-dev \
-            libboost-format-dev \
-            libboost-filesystem-dev
-        }
-        echo "Boost installation completed"
-        dpkg -l | grep boost
+        sudo apt-get install -y cmake build-essential lcov wget
+
+    - name: Build Boost from source
+      run: |
+        echo "Building Boost 1.88.0 from source..."
+        cd /tmp
+        
+        # Download boost 1.88.0
+        wget https://archives.boost.io/release/1.88.0/source/boost_1_88_0.tar.gz
+        tar -xzf boost_1_88_0.tar.gz
+        cd boost_1_88_0
+        
+        # Configure boost build
+        ./bootstrap.sh --with-libraries=thread,system --prefix=$HOME/boost-1.88.0
+        
+        # Build and install boost
+        ./b2 --j$(nproc) variant=release link=shared threading=multi install
+        
+        echo "Boost build completed. Installation directory: $HOME/boost-1.88.0"
 
     - name: Configure with coverage
       run: |
+        export BOOST_ROOT=$HOME/boost-1.88.0
+        export LD_LIBRARY_PATH=$HOME/boost-1.88.0/lib:$LD_LIBRARY_PATH
         cmake -B build-coverage \
           -DCMAKE_BUILD_TYPE=Debug \
           -DENABLE_COVERAGE=ON \
           -DBUILD_TESTS=ON \
-          -DBUILD_EXAMPLES=ON
+          -DBUILD_EXAMPLES=ON \
+          -DBoost_ROOT=$BOOST_ROOT \
+          -DBoost_INCLUDE_DIR=$BOOST_ROOT/include \
+          -DBoost_LIBRARY_DIR=$BOOST_ROOT/lib
 
     - name: Build with coverage
       run: |
+        export LD_LIBRARY_PATH=$HOME/boost-1.88.0/lib:$LD_LIBRARY_PATH
         cmake --build build-coverage --parallel
 
     - name: Initialize coverage baseline
@@ -51,6 +62,7 @@ jobs:
 
     - name: Run tests
       run: |
+        export LD_LIBRARY_PATH=$HOME/boost-1.88.0/lib:$LD_LIBRARY_PATH
         cd build-coverage
         echo "Running tests for coverage..."
         if [ -f "./tests/simple_test" ]; then

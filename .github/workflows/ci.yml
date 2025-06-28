@@ -38,68 +38,58 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential
-        # Install comprehensive boost packages with all components we need
-        sudo apt-get install -y libboost-all-dev || {
-          echo "libboost-all-dev failed, trying comprehensive individual packages..."
-          sudo apt-get install -y \
-            libboost-dev \
-            libboost-thread-dev \
-            libboost-system-dev \
-            libboost-random-dev \
-            libboost-format-dev \
-            libboost-filesystem-dev
-        }
-        echo "Boost installation completed"
-        dpkg -l | grep boost
-        # Check for boost headers we actually use
-        echo "Checking for required boost headers:"
-        ls -la /usr/include/boost/thread/mutex.hpp 2>/dev/null && echo "✅ boost/thread/mutex.hpp found" || echo "❌ boost/thread/mutex.hpp missing"
-        ls -la /usr/include/boost/format.hpp 2>/dev/null && echo "✅ boost/format.hpp found" || echo "❌ boost/format.hpp missing"  
-        ls -la /usr/include/boost/random.hpp 2>/dev/null && echo "✅ boost/random.hpp found" || echo "❌ boost/random.hpp missing"
-        # Check for boost libraries  
-        ls -la /usr/lib/x86_64-linux-gnu/libboost* | head -10 || echo "No boost libraries found"
+        sudo apt-get install -y cmake build-essential wget
+
+    - name: Build Boost from source (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        echo "Building Boost 1.88.0 from source..."
+        cd /tmp
+        
+        # Download boost 1.88.0
+        wget https://archives.boost.io/release/1.88.0/source/boost_1_88_0.tar.gz
+        tar -xzf boost_1_88_0.tar.gz
+        cd boost_1_88_0
+        
+        # Configure boost build
+        ./bootstrap.sh --with-libraries=thread,system --prefix=$HOME/boost-1.88.0
+        
+        # Build and install boost
+        ./b2 --j$(nproc) variant=release link=shared threading=multi install
+        
+        echo "Boost build completed. Installation directory: $HOME/boost-1.88.0"
+        ls -la $HOME/boost-1.88.0/
+        ls -la $HOME/boost-1.88.0/lib/
+        ls -la $HOME/boost-1.88.0/include/boost/ | head -10
 
     - name: Test boost compilation (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
       run: |
-        echo "Testing boost compilation directly..."
+        echo "Testing boost compilation with custom build..."
+        export BOOST_ROOT=$HOME/boost-1.88.0
+        export LD_LIBRARY_PATH=$HOME/boost-1.88.0/lib:$LD_LIBRARY_PATH
+        
         echo "=== Test 1: Header-only compilation ==="
         echo '#include <iostream>' > test_headers.cpp
         echo '#include <boost/format.hpp>' >> test_headers.cpp
         echo '#include <boost/random.hpp>' >> test_headers.cpp
         echo 'int main() { std::cout << "Headers OK" << std::endl; return 0; }' >> test_headers.cpp
-        g++ -std=c++17 test_headers.cpp -o test_headers || {
-          echo "❌ Boost headers test failed"
-          exit 1
-        }
+        g++ -std=c++17 -I$BOOST_ROOT/include test_headers.cpp -o test_headers
+        ./test_headers
         echo "✅ Header-only test passed"
         
         echo "=== Test 2: Thread library compilation ==="
         echo '#include <iostream>' > test_thread.cpp
         echo '#include <boost/thread/mutex.hpp>' >> test_thread.cpp
         echo 'int main() { boost::mutex m; std::cout << "Thread OK" << std::endl; return 0; }' >> test_thread.cpp
-        g++ -std=c++17 test_thread.cpp -lboost_thread -lboost_system -o test_thread || {
-          echo "❌ Boost thread test failed, trying different linking..."
-          g++ -std=c++17 test_thread.cpp -lboost_thread -o test_thread_simple || {
-            echo "❌ Even simple boost thread linking failed"
-            echo "Available boost libraries:"
-            find /usr/lib -name "*boost*" 2>/dev/null | head -10
-            echo "pkg-config boost info:"
-            pkg-config --libs --cflags boost 2>/dev/null || echo "pkg-config boost not available"
-            exit 1
-          }
-          echo "✅ Simple boost thread linking worked"
-        }
+        g++ -std=c++17 -I$BOOST_ROOT/include test_thread.cpp -L$BOOST_ROOT/lib -lboost_thread -lboost_system -o test_thread
+        ./test_thread
         echo "✅ Thread test passed"
         
         echo "=== Test 3: Full boost test ==="
-        g++ -std=c++17 test_boost.cpp -lboost_thread -lboost_system -o test_boost || {
-          echo "❌ Full boost test compilation failed"
-          exit 1
-        }
-        echo "✅ Full boost compilation succeeded, testing execution..."
-        ./test_boost || echo "❌ boost test execution failed"
+        g++ -std=c++17 -I$BOOST_ROOT/include test_boost.cpp -L$BOOST_ROOT/lib -lboost_thread -lboost_system -o test_boost
+        ./test_boost
+        echo "✅ Full boost compilation and execution succeeded"
 
     - name: Install dependencies (macOS)
       if: matrix.os == 'macos-latest'
@@ -108,14 +98,29 @@ jobs:
 
     - name: Configure CMake
       run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          export BOOST_ROOT=$HOME/boost-1.88.0
+          export LD_LIBRARY_PATH=$HOME/boost-1.88.0/lib:$LD_LIBRARY_PATH
+          cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON \
+            -DBoost_ROOT=$BOOST_ROOT \
+            -DBoost_INCLUDE_DIR=$BOOST_ROOT/include \
+            -DBoost_LIBRARY_DIR=$BOOST_ROOT/lib
+        else
+          cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+        fi
 
     - name: Build
       run: |
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          export LD_LIBRARY_PATH=$HOME/boost-1.88.0/lib:$LD_LIBRARY_PATH
+        fi
         cmake --build build --config ${{ matrix.build_type }} --parallel
 
     - name: Run Tests
       run: |
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          export LD_LIBRARY_PATH=$HOME/boost-1.88.0/lib:$LD_LIBRARY_PATH
+        fi
         cd build
         ./tests/simple_test
         ./tests/unit_tests
@@ -126,6 +131,9 @@ jobs:
 
     - name: Run Examples
       run: |
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          export LD_LIBRARY_PATH=$HOME/boost-1.88.0/lib:$LD_LIBRARY_PATH
+        fi
         cd build
         ./examples/basic_example
         ./examples/buffer_operations

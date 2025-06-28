@@ -21,20 +21,26 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential
-        # Install comprehensive boost packages with all components we need
-        sudo apt-get install -y libboost-all-dev || {
-          echo "libboost-all-dev failed, trying comprehensive individual packages..."
-          sudo apt-get install -y \
-            libboost-dev \
-            libboost-thread-dev \
-            libboost-system-dev \
-            libboost-random-dev \
-            libboost-format-dev \
-            libboost-filesystem-dev
-        }
-        echo "Boost installation completed"
-        dpkg -l | grep boost
+        sudo apt-get install -y cmake build-essential wget
+
+    - name: Build Boost from source (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        echo "Building Boost 1.88.0 from source..."
+        cd /tmp
+        
+        # Download boost 1.88.0
+        wget https://archives.boost.io/release/1.88.0/source/boost_1_88_0.tar.gz
+        tar -xzf boost_1_88_0.tar.gz
+        cd boost_1_88_0
+        
+        # Configure boost build
+        ./bootstrap.sh --with-libraries=thread,system --prefix=$HOME/boost-1.88.0
+        
+        # Build and install boost
+        ./b2 --j$(nproc) variant=release link=shared threading=multi install
+        
+        echo "Boost build completed. Installation directory: $HOME/boost-1.88.0"
     
     - name: Install dependencies (macOS)
       if: matrix.os == 'macos-latest'
@@ -42,13 +48,30 @@ jobs:
         brew install cmake boost
     
     - name: Configure
-      run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+      run: |
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          export BOOST_ROOT=$HOME/boost-1.88.0
+          export LD_LIBRARY_PATH=$HOME/boost-1.88.0/lib:$LD_LIBRARY_PATH
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON \
+            -DBoost_ROOT=$BOOST_ROOT \
+            -DBoost_INCLUDE_DIR=$BOOST_ROOT/include \
+            -DBoost_LIBRARY_DIR=$BOOST_ROOT/lib
+        else
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+        fi
     
     - name: Build
-      run: cmake --build build --parallel
+      run: |
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          export LD_LIBRARY_PATH=$HOME/boost-1.88.0/lib:$LD_LIBRARY_PATH
+        fi
+        cmake --build build --parallel
     
     - name: Test
       run: |
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          export LD_LIBRARY_PATH=$HOME/boost-1.88.0/lib:$LD_LIBRARY_PATH
+        fi
         cd build
         echo "Running tests..."
         if [ -f "./tests/simple_test" ]; then
