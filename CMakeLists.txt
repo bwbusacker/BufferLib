@@ -13,15 +13,13 @@ if(POLICY CMP0167)
 endif()
 
 # Find required packages
-# Use modern Boost config approach
+# Handle boost finding robustly across different systems
+set(Boost_USE_STATIC_LIBS OFF)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+
+# Try to find Boost
 find_package(Boost REQUIRED COMPONENTS thread system)
-if(NOT Boost_FOUND)
-    # Fallback to old FindBoost method for older CMake versions
-    set(Boost_USE_STATIC_LIBS OFF)
-    set(Boost_USE_MULTITHREADED ON)
-    set(Boost_USE_STATIC_RUNTIME OFF)
-    find_package(Boost REQUIRED COMPONENTS thread system)
-endif()
 
 # Debug information for boost
 message(STATUS "Boost version: ${Boost_VERSION}")
@@ -29,6 +27,24 @@ message(STATUS "Boost include dirs: ${Boost_INCLUDE_DIRS}")
 message(STATUS "Boost libraries: ${Boost_LIBRARIES}")
 message(STATUS "Boost thread library: ${Boost_THREAD_LIBRARY}")
 message(STATUS "Boost system library: ${Boost_SYSTEM_LIBRARY}")
+
+# Test boost installation
+if(Boost_FOUND)
+    message(STATUS "✅ Boost found successfully")
+    message(STATUS "   Version: ${Boost_VERSION}")
+    if(TARGET Boost::thread)
+        message(STATUS "   ✅ Boost::thread target available")
+    else()
+        message(WARNING "   ❌ Boost::thread target NOT available")
+    endif()
+    if(TARGET Boost::system)
+        message(STATUS "   ✅ Boost::system target available") 
+    else()
+        message(WARNING "   ❌ Boost::system target NOT available")
+    endif()
+else()
+    message(FATAL_ERROR "❌ Boost NOT found - this will cause build failures")
+endif()
 
 # Define library sources
 set(LIBRARY_SOURCES

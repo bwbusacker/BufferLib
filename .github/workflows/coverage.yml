@@ -19,10 +19,16 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake build-essential lcov
-        # Install comprehensive boost packages
+        # Install comprehensive boost packages with all components we need
         sudo apt-get install -y libboost-all-dev || {
-          echo "libboost-all-dev failed, trying individual packages..."
-          sudo apt-get install -y libboost-dev libboost-thread-dev libboost-system-dev
+          echo "libboost-all-dev failed, trying comprehensive individual packages..."
+          sudo apt-get install -y \
+            libboost-dev \
+            libboost-thread-dev \
+            libboost-system-dev \
+            libboost-random-dev \
+            libboost-format-dev \
+            libboost-filesystem-dev
         }
         echo "Boost installation completed"
         dpkg -l | grep boost

@@ -39,15 +39,24 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake build-essential
-        # Install comprehensive boost packages
+        # Install comprehensive boost packages with all components we need
         sudo apt-get install -y libboost-all-dev || {
-          echo "libboost-all-dev failed, trying individual packages..."
-          sudo apt-get install -y libboost-dev libboost-thread-dev libboost-system-dev
+          echo "libboost-all-dev failed, trying comprehensive individual packages..."
+          sudo apt-get install -y \
+            libboost-dev \
+            libboost-thread-dev \
+            libboost-system-dev \
+            libboost-random-dev \
+            libboost-format-dev \
+            libboost-filesystem-dev
         }
         echo "Boost installation completed"
         dpkg -l | grep boost
-        # Check for boost headers
-        ls -la /usr/include/boost/ | head -10 || echo "No boost headers in /usr/include/boost/"
+        # Check for boost headers we actually use
+        echo "Checking for required boost headers:"
+        ls -la /usr/include/boost/thread/mutex.hpp 2>/dev/null && echo "✅ boost/thread/mutex.hpp found" || echo "❌ boost/thread/mutex.hpp missing"
+        ls -la /usr/include/boost/format.hpp 2>/dev/null && echo "✅ boost/format.hpp found" || echo "❌ boost/format.hpp missing"  
+        ls -la /usr/include/boost/random.hpp 2>/dev/null && echo "✅ boost/random.hpp found" || echo "❌ boost/random.hpp missing"
         # Check for boost libraries  
         ls -la /usr/lib/x86_64-linux-gnu/libboost* | head -10 || echo "No boost libraries found"
 
