@@ -58,6 +58,25 @@ else()
     target_compile_options(BufferLib PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
+# Code coverage option
+option(ENABLE_COVERAGE "Enable code coverage" OFF)
+if(ENABLE_COVERAGE)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        # Add coverage flags
+        target_compile_options(BufferLib PRIVATE --coverage -fprofile-arcs -ftest-coverage)
+        target_link_libraries(BufferLib PRIVATE --coverage)
+        
+        # Set coverage flags for tests as well
+        set(CMAKE_CXX_FLAGS_COVERAGE "--coverage -fprofile-arcs -ftest-coverage -g -O0")
+        set(CMAKE_C_FLAGS_COVERAGE "--coverage -fprofile-arcs -ftest-coverage -g -O0")
+        set(CMAKE_EXE_LINKER_FLAGS_COVERAGE "--coverage")
+        
+        message(STATUS "Code coverage enabled")
+    else()
+        message(WARNING "Code coverage is only supported with GCC or Clang")
+    endif()
+endif()
+
 # Enable OpenMP if available (used in Buffer.cpp)
 find_package(OpenMP)
 if(OpenMP_CXX_FOUND)

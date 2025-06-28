@@ -1,0 +1,88 @@
+name: Code Coverage
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  coverage:
+    name: Generate Coverage Report
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential libboost-all-dev lcov
+
+    - name: Configure with coverage
+      run: |
+        cmake -B build-coverage \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DENABLE_COVERAGE=ON \
+          -DBUILD_TESTS=ON \
+          -DBUILD_EXAMPLES=ON
+
+    - name: Build with coverage
+      run: |
+        cmake --build build-coverage --parallel
+
+    - name: Initialize coverage baseline
+      run: |
+        lcov --capture --initial --directory build-coverage --output-file baseline.info
+
+    - name: Run tests
+      run: |
+        cd build-coverage
+        ./tests/simple_test
+        ./tests/unit_tests
+        ./examples/basic_example
+        ./examples/buffer_operations
+        cd ..
+
+    - name: Capture coverage data
+      run: |
+        lcov --capture --directory build-coverage --output-file test.info
+
+    - name: Combine coverage data
+      run: |
+        lcov --add-tracefile baseline.info --add-tracefile test.info --output-file coverage.info
+
+    - name: Filter coverage data
+      run: |
+        lcov --remove coverage.info \
+          '/usr/*' \
+          '/opt/*' \
+          '*/boost/*' \
+          '*/examples/*' \
+          '*/tests/*' \
+          --output-file coverage.info
+
+    - name: Generate coverage report
+      run: |
+        genhtml coverage.info --output-directory coverage-html \
+          --title "BufferLib Code Coverage Report" \
+          --show-details --legend --demangle-cpp
+
+    - name: Coverage summary
+      run: |
+        lcov --summary coverage.info
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.info
+        flags: unittests
+        name: BufferLib Coverage
+        fail_ci_if_error: false
+
+    - name: Upload coverage artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage-html/ 

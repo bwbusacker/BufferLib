@@ -1,6 +1,13 @@
 # Build directories
 build/
+build-*/
 cmake-build-*/
+
+# Coverage reports
+coverage/
+*.gcov
+*.gcda
+*.gcno
 
 # Compiled object files
 *.o
