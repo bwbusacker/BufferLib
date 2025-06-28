@@ -73,7 +73,12 @@ endif()
 # Optional: Build tests
 option(BUILD_TESTS "Build test programs" ON)
 if(BUILD_TESTS)
+    enable_testing()
     add_subdirectory(tests)
+    
+    # Register tests with CTest
+    add_test(NAME SimpleTests COMMAND simple_test WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+    add_test(NAME UnitTests COMMAND unit_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
 endif()
 
 # Installation rules
